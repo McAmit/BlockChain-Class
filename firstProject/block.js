@@ -6,12 +6,12 @@ class Block {
 
     constructor() {
 
-        const leaves = ['a'].map(x => SHA256(x))
+        const leaves = [''].map(x => SHA256(x))
         const tree = new MerkleTree(leaves, SHA256)
         const root = tree.getRoot().toString('hex')
         
         this.index = 0
-        this.previousHash = ""
+        this.previousHash = ''
         this.hash = ""
         this.nonce = 0
         this.transactions = tree
