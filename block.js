@@ -6,18 +6,23 @@ class Block {
 
     constructor() {
 
-        const leaves = ['a'].map(x => SHA256(x))
+        const leaves = [''].map(x => SHA256(x))
         const tree = new MerkleTree(leaves, SHA256)
         const root = tree.getRoot().toString('hex')
         
         this.index = 0
-        this.previousHash = ""
+        this.previousHash = ''
         this.hash = ""
         this.nonce = 0
         this.transactions = tree
-     }
+        this.timestamp = Date.now()
+    }
 
-     addTransaction(transaction) {
+    calculateHash(){
+        return SHA256(this.index+this.previousHash+this.timestamp +JSON.stringify(this.data)+this.nonce).toString;
+    }
+
+    addTransaction(transaction) {
         if(!transaction.from || !transaction.to){
             throw new Error("Transaction must have to and from address")
         }
@@ -26,7 +31,6 @@ class Block {
         //     throw new Error("Cannot add invalid transaction to chain")
         // }
 
-        //this.transactions.push(transaction)
         this.transactions.addLeaf(transaction,SHA256)
     }
 
@@ -41,6 +45,15 @@ class Block {
          const leaf = SHA256('a')
          const proof = tree.getProof(leaf)
         return true
+    }
+
+    mineBlock(difficulty){
+        while(this.hash.substring(0,difficulty) !== Array(difficulty +1).join("0")){
+            this.nonce++;
+            this.hash = this.calculateHash();
+        }
+
+        console.log("BLOCK MINED: " + this.hash);
     }
 }
 
