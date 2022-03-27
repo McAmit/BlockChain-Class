@@ -8,6 +8,7 @@ class Transaction {
         this.to = to
         this.amount = amount
         this.timestamp = Date.now()
+        this.signature = ''
     }
 
     calculateHash(){
@@ -25,21 +26,15 @@ class Transaction {
 
     // validation
 
-    // isValid(){
-    //     if(this.from === null) return true
-    //     // if (!this.signature || this.signature === 0){
-    //     //     throw new Error("no signature in this transaction")
-    //     // }
-    //     const publicKey = ec.keyFromPublic(this.from, 'hex')
-    //     return publicKey.verify(this.calculateHash, this.signature)
-    // }
-
     isValid(){
-        if(this.fromAddress===null)return true
-        if(!this.signature||this.signature.length===0){
-         throw new Error('No signature in the transaction')
+        if(this.from === null) return true
+        if (!this.signature || this.signature === 0){
+            throw new Error("no signature in this transaction")
         }
+        const publicKey = ec.keyFromPublic(this.from, 'hex')
+        return publicKey.verify(this.calculateHash(), this.signature)
     }
+    
 }
 
 module.exports = Transaction
