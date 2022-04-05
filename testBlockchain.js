@@ -31,5 +31,9 @@ let anotherTransaction = new Transaction("Azam","Jerry",100)
 let block1 = blockchain.getNextBlock([anotherTransaction,transaction])
 blockchain.addBlock(block1)
 
-console.log(blockchain)
-console.log(blockchain.blocks.filter.toString())
+let anotherTransaction2 = new Transaction("ASsSAzam","Jereeery",100)
+
+//console.log(blockchain)
+console.log(blockchain.bfilter.has(anotherTransaction2.calculateHash()))
+//console.log(blockchain.bfilter._seed)
+//console.log(blockchain.bfilter._hashing)
