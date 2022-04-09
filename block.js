@@ -4,18 +4,18 @@ const SHA256 = require('crypto-js/sha256')
 
 class Block {
 
-    constructor() {
+    constructor(timestamp, transactions, previousHash = '') {
 
-        const leaves = [''].map(x => SHA256(x))
+        const leaves = [transactions].map(x => SHA256(x))
         const tree = new MerkleTree(leaves, SHA256)
         const root = tree.getRoot().toString('hex')
         
         this.index = 0
-        this.previousHash = ''
-        this.hash = ""
+        this.previousHash = previousHash
+        this.hash = this.calculateHash()
         this.nonce = 0
         this.transactions = tree
-        this.timestamp = Date.now()
+        this.timestamp = timestamp
     }
 
     calculateHash(){

@@ -1,5 +1,6 @@
 let Block = require('./block')
 let sha256 = require('js-sha256')
+const fs = require('fs')
 const{PartitionedBloomFilter}=require('bloom-filters') 
 const Transaction = require('./transaction')
 const bloomFilter = new PartitionedBloomFilter(10, 5, 0.001) 
@@ -14,7 +15,8 @@ class Blockchain {
         this.memPool = []
         this.miningReward = 100
         this.burnAddress = "0x000000000000000000000000000000000000dead"
-
+        this.tokensBurned = 0
+        this.minedTokens = 0
 
     }
     createGenesisBlock(){
@@ -25,28 +27,25 @@ class Blockchain {
         return this.chain[this.chain.length - 1];
     }
 
-     // addBlock(block, miningRewardAdress) {
-    //     if(this.blocks.length == 0) {
-    //         block.previousHash = "0000000000000000"
-    //         block.hash = this.generateHash(block)
-    //     }
-    //     // block.mineBlock(this.difficulty)
-    //     // console.log("Block successfully mined.")
-    //     this.blocks.push(block)
-    //     //this.bfilter.add(block.hash)
-    //     // let transaction = new Transaction(null, miningRewardAdress, this.miningReward)
-    //     // this.memPool.push(transaction)
-    // }
-
     minePendingTransactions(miningRewardAddress){
-        createTransaction(Transaction(null,miningRewardAddress,this.miningReward))
+      // let counter = this.memPool.length -1
+      this.memPool.push(new Transaction(null,miningRewardAddress,this.miningReward))
+      this.miningReward = 20
+      this.minedTokens += this.miningReward
+      let block=new Block(Date.now(),this.pendingTransactions,this.getLatestBlock().hash)
+      block.mineBlock(this.difficulty)
+      console.log('Block successfully mines!')
+      this.chain.push(block)
+      this.bfilter.add(block.hash)
+      this.memPool.forEach(transaction => {
+        try {
+          fs.appendFileSync('text.log', transaction)
+        } catch(err) {
+          console.error(err)
+        }
+      });
         
-        let block=new Block(Date.now(),this.pendingTransactions,this.getLatestBlock().hash)
-        block.mineBlock(this.difficulty)
-        console.log('Block successfully mines!')
-        this.chain.push(block)
-        //this.bfilter.add(block.hash)
-        this.memPool=[]
+      this.memPool=[]
     }
 
     calculateFee(block){
@@ -54,7 +53,8 @@ class Blockchain {
         return fee
     }
     
-    addTransaction(transaction) {
+    addTransactionWithFee(transaction) {
+      let amountWithFee = transaction.amount + this.chain.find(transaction.from).index+1
         if (!transaction.from || !transaction.to) {
           throw new Error('Transaction must include from and to address');
         }
@@ -70,12 +70,12 @@ class Blockchain {
         
         // Making sure that the amount sent is not greater than existing balance
         const walletBalance = this.getBalanceOfAddress(transaction.from);
-        if (walletBalance < transaction.amount) {
+        if (walletBalance < amountWithFee) {
           throw new Error('Not enough balance');
         }
     
         // Get all other pending transactions for the "from" wallet
-        const pendingTxForWallet = this.pendingTransactions
+        const pendingTxForWallet = this.memPool
           .filter(tx => tx.from === transaction.from);
     
         // If the wallet has more pending transactions, calculate the total amount
@@ -86,7 +86,7 @@ class Blockchain {
             .map(tx => tx.amount)
             .reduce((prev, curr) => prev + curr);
     
-          const totalAmount = totalPendingAmount + transaction.amount;
+          const totalAmount = totalPendingAmount + amountWithFee;
           if (totalAmount > walletBalance) {
             throw new Error('Pending transactions for this wallet is higher than its balance.');
           }
@@ -94,6 +94,8 @@ class Blockchain {
                                         
     
         this.memPool.push(transaction);
+        this.burnToken(transaction.from, this.chain.find(transaction.from).index)
+        this.miningReward++
         debug('transaction added: %s', transaction);
     }
 
@@ -114,6 +116,14 @@ class Blockchain {
 
         debug('getBalanceOfAdrees: %s', balance);
         return balance;
+    }
+
+    getTotalBlockchainBalance(){
+      let totalBalance = 0
+      this.chain.forEach(block => {
+        totalBalance += this.getBalanceOfAddress(block.hash)
+      })
+      return totalBalance
     }
 
     getAllTransactionsForWallet(address) {
@@ -159,7 +169,9 @@ class Blockchain {
     }
 
     burnToken(fromAddress, amount){
-        this.addTransaction(new Transaction(fromAddress, this.burnAddress, amount))
+        this.memPool.push(new Transaction(fromAddress, this.burnAddress, amount))
+        this.tokensBurned += amount
+
     }
 
     isChainValid(){
