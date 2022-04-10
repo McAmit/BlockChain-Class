@@ -28,18 +28,18 @@ class Blockchain {
     }
 
     minePendingTransactions(miningRewardAddress){
-      // let counter = this.memPool.length -1
       this.memPool.push(new Transaction(null,miningRewardAddress,this.miningReward))
       this.miningReward = 20
       this.minedTokens += this.miningReward
-      let block=new Block(Date.now(),this.pendingTransactions,this.getLatestBlock().hash)
+      let block=new Block(Date.now(),this.memPool,this.getLatestBlock().hash)
       block.mineBlock(this.difficulty)
-      console.log('Block successfully mines!')
+      block.index=this.chain.length-1
+      console.log('Block successfully mined!')
       this.chain.push(block)
       this.bfilter.add(block.hash)
       this.memPool.forEach(transaction => {
         try {
-          fs.appendFileSync('text.log', transaction)
+          fs.appendFileSync('text.log', "\n"+JSON.stringify(transaction))
         } catch(err) {
           console.error(err)
         }
@@ -54,7 +54,7 @@ class Blockchain {
     }
     
     addTransactionWithFee(transaction) {
-      let amountWithFee = transaction.amount + this.chain.find(transaction.from).index+1
+      let amountWithFee = transaction.amount + this.getLatestBlock().index + 1
         if (!transaction.from || !transaction.to) {
           throw new Error('Transaction must include from and to address');
         }
@@ -94,27 +94,25 @@ class Blockchain {
                                         
     
         this.memPool.push(transaction);
-        this.burnToken(transaction.from, this.chain.find(transaction.from).index)
+        this.burnToken(transaction.from, this.chain.length-1)
         this.miningReward++
-        debug('transaction added: %s', transaction);
+        //debug('transaction added: %s', transaction);
     }
 
     getBalanceOfAddress(address){
         let balance = 0;
 
         for (const block of this.chain) {
-        for (const trans of block.transactions) {
-            if (trans.from === address) {
-            balance -= trans.amount;
-            }
-
-            if (trans.to === address) {
-            balance += trans.amount;
-            }
-        }
+         
+            for(let i=0; i<block.transactions.length;i++){
+              let tx=block.transactions[i]
+              if (tx.from === address) balance -= tx.amount;
+              if (tx.to === address) balance += tx.amount;
+            
+          }
         }
 
-        debug('getBalanceOfAdrees: %s', balance);
+        //debug('getBalanceOfAdrees: %s', balance);
         return balance;
     }
 

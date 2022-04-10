@@ -7,19 +7,19 @@ class Block {
     constructor(timestamp, transactions, previousHash = '') {
 
         const leaves = [transactions].map(x => SHA256(x))
-        const tree = new MerkleTree(leaves, SHA256)
-        const root = tree.getRoot().toString('hex')
+        this.tree = new MerkleTree(leaves, SHA256)
+        const root = this.tree.getRoot().toString('hex')
         
         this.index = 0
         this.previousHash = previousHash
         this.hash = this.calculateHash()
         this.nonce = 0
-        this.transactions = tree
+        this.transactions = transactions
         this.timestamp = timestamp
     }
 
     calculateHash(){
-        return SHA256(this.index+this.previousHash+this.timestamp +JSON.stringify(this.data)+this.nonce).toString;
+        return SHA256(this.index+this.previousHash+this.timestamp +JSON.stringify(this.data)+this.nonce).toString();
     }
 
     addTransaction(transaction) {

@@ -7,33 +7,48 @@ let ec = new EC('secp256k1')
 let mykey = ec.keyFromPrivate('NEED TO INSERT')
 let myWalletAddress = mykey.getPublic('hex')
 
+let walletSpv1Pk=ec.keyFromPrivate('Key1')
+let wallet1Address=walletSpv1Pk.getPublic('hex')
+
+let walletSpv2Pk=ec.keyFromPrivate('Key2')
+let wallet2Address=walletSpv2Pk.getPublic('hex')
 
 
-// create genesis block
-let genesisBlock = new Block()
-let blockchain = new Blockchain(genesisBlock)
 
 
-// mica 
+let blockchain = new Blockchain()
 
-let tx1= new Transaction(myWalletAddress,'address2', 20)
+
+blockchain.minePendingTransactions(myWalletAddress)
+blockchain.minePendingTransactions(myWalletAddress)
+
+
+console.log(blockchain.getBalanceOfAddress(myWalletAddress))
+
+let tx1= new Transaction(myWalletAddress,wallet1Address, 50)
 tx1.signTransaction(mykey)
-let blockMica = blockchain.getNextBlock([tx1])
-blockchain.addBlock(blockMica)
+blockchain.addTransactionWithFee(tx1)
+//let blockMiner = blockchain.getNextBlock([tx1])
+blockchain.minePendingTransactions(myWalletAddress)
+console.log(blockchain.getBalanceOfAddress(wallet1Address))
 
-// create a new transaction, first one
-let transaction = new Transaction('Mary','John',10)
-let block = blockchain.getNextBlock([transaction])
-blockchain.addBlock(block)
+// // SPV-Wallet 4001
+// let tx2 = new Transaction(wallet1Address,wallet2Address,30)
+// tx2.signTransaction(walletSpv1Pk)
+// //let block = blockchain.getNextBlock([transaction])
+// blockchain.addTransactionWithFee(tx2)
+// blockchain.minePendingTransactions(myWalletAddress)
 
-// create a new transaction, second one
-let anotherTransaction = new Transaction("Azam","Jerry",100)
-let block1 = blockchain.getNextBlock([anotherTransaction,transaction])
-blockchain.addBlock(block1)
+// // SPV-Wallet 4002
 
-let anotherTransaction2 = new Transaction("ASsSAzam","Jereeery",100)
+// let tx3 = new Transaction(wallet2Address,wallet1Address,10)
+// //let block1 = blockchain.getNextBlock([anotherTransaction,transaction])
+// tx3.signTransaction(walletSpv2Pk)
+// blockchain.addTransactionWithFee(tx3)
+// blockchain.minePendingTransactions(myWalletAddress)
 
-//console.log(blockchain)
-console.log(blockchain.bfilter.has(anotherTransaction2.calculateHash()))
+
+// console.log(blockchain)
+//console.log(blockchain.bfilter.has(anotherTransaction2.calculateHash()))
 //console.log(blockchain.bfilter._seed)
 //console.log(blockchain.bfilter._hashing)

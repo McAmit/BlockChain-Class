@@ -1,16 +1,7 @@
 const topology = require('fully-connected-topology')
-const {
-    stdin,
-    exit,
-    argv
-} = process
-const {
-    log
-} = console
-const {
-    me,
-    peers
-} = extractPeersAndMyPort()
+const {stdin,exit,argv} = process
+const {log} = console
+const {me,peers} = extractPeersAndMyPort(argv)
 const sockets = {}
 
 log('---------------------')
