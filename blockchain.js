@@ -13,9 +13,9 @@ class Blockchain {
         this.difficulty = 2 // number of zero before target hash
         this.bfilter = bloomFilter
         this.memPool = []
-        this.miningReward = 100
+        this.miningReward = 20
         this.burnAddress = "0x000000000000000000000000000000000000dead"
-        this.tokensBurned = 0
+        this.tokensBurnt = 0
         this.minedTokens = 0
 
     }
@@ -169,9 +169,19 @@ class Blockchain {
 
     burnToken(fromAddress, amount){
         this.memPool.push(new Transaction(fromAddress, this.burnAddress, amount))
-        this.tokensBurned += amount
+        this.tokensBurnt += amount
 
     }
+    showBurntTokens(){
+      console.log("Amount of tokens Burnt on this SupaChain: "+this.tokensBurnt)
+    }
+    showMinedTokens(){
+      console.log("Amount of tokens Mined on this SupaChain: "+this.minedTokens)
+    }
+    showBlockChainTotalTokens(){
+      console.log("Amount of tokens on this SupaChain: "+this.getTotalBlockchainBalance())
+    }
+
 
     isChainValid(){
         for (let i = 1; i < this.chain.length; i++) {
@@ -190,4 +200,6 @@ class Blockchain {
      }
 }
 
-module.exports = Blockchain
+const supaChain = new Blockchain()
+
+module.exports = {Blockchain,supaChain}

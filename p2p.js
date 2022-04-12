@@ -2,9 +2,7 @@ let EC = require('elliptic').ec
 let ec = new EC('secp256k1')
 let Block = require('./block')
 let Transaction = require('./transaction')
-let Blockchain = require('./blockchain')
-
-const supaChain = new Blockchain()
+const { Blockchain, supaChain } = require('./blockchain')
 
 const topology = require('fully-connected-topology')
 const { stdin, exit, argv } = process
@@ -30,64 +28,138 @@ topology(myIp, peerIps).on('connection', (socket, peerIp) => {
     const myKey = ec.keyFromPrivate(me)
     const myAddress = myKey.getPublic('hex')
     const peersKeys = setPeersKeyMap()
-    
-    
+
 
     sockets[peerPort] = socket
     stdin.on('data', data => { //on user input
         const message = data.toString().trim()
         const prefix = message.split(" ")[0]
-        switch (prefix) {
-            case 'exit':
-                log('Bye bye')
-                exit(0)
-                break;
-            case 'mine':
-                mine(myAddress)
-                break;
+        if (me === '4000') {
+            minerSwitch(prefix,message,peersKeys,myAddress,myKey,peerPort)
 
-            case 'balance':
-                balanceOf(message,peersKeys,myAddress)
-                break;
+        } else {
+            switch (prefix) {
+                case 'exit':
+                    exitNow()
+                    break;
+                     case 'send':
+                     
+                     break;
+                    // case 'exit':
+                    // exit()
+                    // break;
+                    // case 'exit':
+                    // exit()
+                    // break;
+                    // case 'exit':
+                    // exit()
+                    // break;
+                default:
+                    break;
+            }
 
-            case 'send':
-                sendTx(message,peersKeys,myAddress, myKey)
-                break;
-            case 'request':
-                let txAndPeer = requestTx(message,peersKeys,myAddress)
-                let str='A transaction was sent to you from:' +me+':\n Tx-Details: '+txAndPeer.tx+'\nwrite "approve + y/n" to answer the request'
-                sendMessageToPeer(str,txAndPeer.peer,peerPort) 
-                peersTxns.set(txAndPeer.peer,txAndPeer.tx) // send TX to peer throughout peerTx map
-
-                break;
-            case 'approve':
-                console.log(peersTxns.get(me))
-                pullAndSignTx(message,myKey)
-
-                break;
-            case 'all tokens':
-
-                break;
-            case 'showAllBalance':
-                showAllBalance(myAddress,peersKeys)
-                break;
-            default:
-                break;
+        }
+                const receiverPeer = extractReceiverPeer(message)
+        if (sockets[receiverPeer]) { //message to specific peer
+            if (peerPort === receiverPeer) { //write only once
+                sockets[receiverPeer].write(formatMessage(extractMessageToSpecificPeer(message)))
+            }
+        } else { //broadcast message to everyone
+            socket.write(message)
         }
 
-        // const receiverPeer = extractReceiverPeer(message)
-        // if (sockets[receiverPeer]) { //message to specific peer
-        //     if (peerPort === receiverPeer) { //write only once
-        //         sockets[receiverPeer].write(formatMessage(extractMessageToSpecificPeer(message)))
-        //     }
-        // } else { //broadcast message to everyone
-        //     socket.write(formatMessage(message))
-        // }
     })
-
-    //print data when received
-    socket.on('data', data => log(data.toString('utf8')))
+    
+    socket.on('data', data =>{
+        const message = data.toString().trim()
+        const prefix = message.split(" ")[0]
+        if (me === '4000') {
+            switch (prefix) {
+                case 'send':
+                    
+                    break;
+            
+                default:
+                    minerSwitch(prefix,message,peersKeys,myAddress,myKey,peerPort)
+                    break;
+            }    
+        }else {
+            log(message)
+        }
+    })
 })
+function exitNow(){
+    log('Bye bye')
+    exit(0)
+}
+
+function minerSwitch(prefix,message, peersKeys, myAddress, myKey,peerPort){
+    switch (prefix) {
+        case 'exit':
+            exitNow()
+            break;
+        case 'mine':
+            mine(myAddress)
+            break;
+
+        case 'balance':
+            balanceOf(message, peersKeys, myAddress)
+            break;
+
+        case 'send':
+            sendTx(message, peersKeys, myAddress, myKey)
+            break;
+        case 'request':
+            let txAndPeer = requestTx(message, peersKeys, myAddress)
+            let str = 'A transaction was sent to you from:' + me + ':\n Tx-Details: ' + txAndPeer.tx + '\nwrite "approve + YourPort + y/n" to answer the request'
+            sendMessageToPeer(str, txAndPeer.peer, peerPort)
+            peersTxns.set(txAndPeer.peer, txAndPeer.tx) // send TX to peer throughout peerTx map
+            break;
+        case 'approve':
+            let tempPort = message.split(" ")[1]
+            //console.log(peersTxns.get(tempPort))
+            let key = peersKeys.get(tempPort)
+            pullAndSignTx(message, key,tempPort)
+            break;
+        case 'showTokens':
+            showTotalTokens()
+            break;
+        case 'showBurnt':
+            showBurntTokens()
+            break;
+        case 'showMined':
+            showMinedTokens()
+            break;
+        case 'showAllBalance':
+            showAllBalance(myAddress, peersKeys)
+            break;
+        default:
+            break;
+    }
+}
+
+function walletSwitch(prefix, message, peersKeys, myAddress, myKey,peerPort){
+    switch (prefix) {
+        case 'exit':
+            exitNow()
+            break;
+             case 'send':
+             
+             break;
+            // case 'exit':
+            // exit()
+            // break;
+            // case 'exit':
+            // exit()
+            // break;
+            // case 'exit':
+            // exit()
+            // break;
+        default:
+            break;
+    }
+}
+
 function sendMessageToPeer(message, receiverPeer, peerPort) {
     if (sockets[receiverPeer]) { //message to specific peer
         if (peerPort === receiverPeer) { //write only once
@@ -95,138 +167,138 @@ function sendMessageToPeer(message, receiverPeer, peerPort) {
         }
     }
 }
-function pullAndSignTx(message,myKey){
-    let str=message.split(" ")[1]
-    if(str==='y'){
-        let tx = peersTxns.get(me)
+//extract ports from process arguments, {me: first_port, peers: rest... }
+function extractPeersAndMyPort() {
+    return {
+        me: argv[2],
+        peers: argv.slice(3, argv.length)
+    }
+}
+
+//'4000' -> '127.0.0.1:4000'
+function toLocalIp(port) {
+    return `127.0.0.1:${port}`
+}
+
+//['4000', '4001'] -> ['127.0.0.1:4000', '127.0.0.1:4001']
+function getPeerIps(peers) {
+    return peers.map(peer => toLocalIp(peer))
+}
+
+//'hello' -> 'myPort:hello'
+function formatMessage(message) {
+    return `${me}>${message}`
+}
+
+//'127.0.0.1:4000' -> '4000'
+function extractPortFromIp(peer) {
+    return peer.toString().slice(peer.length - 4, peer.length);
+}
+
+//'4000>hello' -> '4000'
+function extractReceiverPeer(message) {
+    return message.slice(0, 4);
+}
+
+//'4000>hello' -> 'hello'
+function extractMessageToSpecificPeer(message) {
+    return message.slice(5, message.length);
+}
+function setPeersKeyMap() {
+    let peersKeys = new Map();
+    for (let i = 0; i < peers.length; i++) {
+        peersKeys.set(peers[i], ec.keyFromPrivate(peers[i]))
+    }
+    return peersKeys
+}
+
+function setPeersTxMap() {
+    let peersTx = new Map()
+    for (let i = 0; i < peers.length; i++) {
+        peersTx.set(peers[i], Transaction)
+    }
+    return peersTx
+}
+
+function mine(myWalletAddress) {
+    if (me === "4000") {
+        supaChain.minePendingTransactions(myWalletAddress);
+    } else {
+        log("This wallet cannot mine!")
+    }
+
+}
+
+function balanceOf(message, peersKeys, myAddress) {
+    let ofPeer = message.split(" ")[1]
+    if (ofPeer !== me) {
+        let balance = supaChain.getBalanceOfAddress(peersKeys.get(ofPeer).getPublic('hex'))
+        log("The balance of peer %s : %d", ofPeer, balance)
+    } else {
+        let balance = supaChain.getBalanceOfAddress(myAddress)
+        log("The balance of peer %s : %d", ofPeer, balance)
+    }
+
+
+}
+
+function sendTx(message, peersKeys, myAddress, myKey) {
+    let str = message.split(" ")
+    let toPeer = str[1]
+    if(toPeer===me) return;
+    let amount = parseInt(str[2])
+    tx = new Transaction(myAddress, peersKeys.get(toPeer).getPublic('hex'), amount)
+    tx.signTransaction(myKey)
+    if (supaChain.addTransactionWithFee(tx))
+        log("Transaction sent successfuly")
+
+}
+
+function requestTx(message, peersKeys, myAddress) {
+    let str = message.split(" ")
+    let fromPeer = str[1]
+    let amount = parseInt(str[2])
+    tx = new Transaction(peersKeys.get(fromPeer).getPublic('hex'), myAddress, amount)
+    return { tx: tx, peer: fromPeer }
+}
+function pullAndSignTx(message, key, port) {
+    let yesOrNo = message.split(" ")[2]
+    if (yesOrNo === 'y') {
+        let tx = peersTxns.get(port)
         console.log(tx)
-        tx.signTransaction(myKey)
-        if(supaChain.addTransactionWithFee(tx)){
+        tx.signTransaction(key)
+        if (supaChain.addTransactionWithFee(tx)) {
             console.log("Transaction Sent Succefully")
-            peersTxns.set(me,null)
+            peersTxns.set(port, null)
         }
-    } else if(str==='n'){
+    } else if (yesOrNo === 'n') {
         console.log("You disapproved the transaction!")
-        peersTxns.set(me,null)
+        peersTxns.set(port, null)
     } else {
         console.log("Wrong input, nothing happend")
     }
 
 }
 
-    //extract ports from process arguments, {me: first_port, peers: rest... }
-    function extractPeersAndMyPort() {
-        return {
-            me: argv[2],
-            peers: argv.slice(3, argv.length)
-        }
+function showAllBalance(myAddress, peersKeys) {
+    let myBalance = supaChain.getBalanceOfAddress(myAddress)
+    log("My balance: %d", myBalance)
+
+    for (let i = 0; i < peersKeys.size; i++) {
+        let balance = supaChain.getBalanceOfAddress(peersKeys.get(peers[i]).getPublic('hex'))
+        log("Balance of %s : %d", peers[i], balance)
     }
-
-    //'4000' -> '127.0.0.1:4000'
-    function toLocalIp(port) {
-        return `127.0.0.1:${port}`
-    }
-
-    //['4000', '4001'] -> ['127.0.0.1:4000', '127.0.0.1:4001']
-    function getPeerIps(peers) {
-        return peers.map(peer => toLocalIp(peer))
-    }
-
-    //'hello' -> 'myPort:hello'
-    function formatMessage(message) {
-        return `${me}>${message}`
-    }
-
-    //'127.0.0.1:4000' -> '4000'
-    function extractPortFromIp(peer) {
-        return peer.toString().slice(peer.length - 4, peer.length);
-    }
-
-    //'4000>hello' -> '4000'
-    function extractReceiverPeer(message) {
-        return message.slice(0, 4);
-    }
-
-    //'4000>hello' -> 'hello'
-    function extractMessageToSpecificPeer(message) {
-        return message.slice(5, message.length);
-    }
-    function setPeersKeyMap() {
-        let peersKeys = new Map();
-        for (let i = 0; i < peers.length; i++) {
-            peersKeys.set(peers[i], ec.keyFromPrivate(peers[i]))
-        }
-        return peersKeys
-    }
-
-    function setPeersTxMap(){
-        let peersTx=new Map()
-        for (let i = 0; i < peers.length; i++) {
-            peersTx.set(peers[i],Transaction)
-        }
-        return peersTx
-    }
-
-    function mine(myWalletAddress) {
-        if (me === "4000") {
-            supaChain.minePendingTransactions(myWalletAddress);
-        } else {
-            log("This wallet cannot mine!")
-        }
-
-    }
-
-    function balanceOf(message,peersKeys,myAddress) {
-        let ofPeer = message.split(" ")[1]
-        if(ofPeer!==me){
-            let balance = supaChain.getBalanceOfAddress(peersKeys.get(ofPeer).getPublic('hex'))
-            log("The balance of peer %s : %d", ofPeer, balance)
-        }else{
-            let balance = supaChain.getBalanceOfAddress(myAddress)
-            log("The balance of peer %s : %d", ofPeer, balance)
-        }
-
-        
-    }
-
-    function sendTx(message,peersKeys,myAddress, myKey) {
-        let str = message.split(" ")
-        let toPeer = str[1]
-        let amount = parseInt(str[2])
-        tx = new Transaction(myAddress, peersKeys.get(toPeer).getPublic('hex'), amount)
-        tx.signTransaction(myKey)
-        if (supaChain.addTransactionWithFee(tx))
-            log("Transaction sent successfuly")
-
-    }
-
-    function requestTx(message,peersKeys,myAddress) {
-        let str = message.split(" ")
-        let fromPeer = str[1]
-        let amount = parseInt(str[2])
-        tx = new Transaction(peersKeys.get(fromPeer).getPublic('hex'), myAddress, amount)
-        return { tx: tx, peer: fromPeer }
-    }
-
-    function showAllBalance(myAddress,peersKeys) {
-        let myBalance = supaChain.getBalanceOfAddress(myAddress)
-        log("My balance: %d", myBalance)
-
-        for (let i = 0; i < peersKeys.size; i++) {
-            let balance = supaChain.getBalanceOfAddress(peersKeys.get(peers[i]).getPublic('hex'))
-            log("Balance of %s : %d", peers[i], balance)
-        }
-    }
+}
 
 
-    function showTotalTokens() {
+function showBurntTokens() {
+    supaChain.showBurntTokens()
+}
 
-    }
+function showMinedTokens() {
+    supaChain.showMinedTokens()
+}
 
-    function showMinedTokens() {
-
-    }
-
-    function showBurntToken() {
-
-    }
+function showTotalTokens() {
+    supaChain.showBlockChainTotalTokens()
+}
