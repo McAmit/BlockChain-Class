@@ -97,6 +97,7 @@ class Blockchain {
         this.burnToken(transaction.from, this.chain.length-1)
         this.miningReward++
         //debug('transaction added: %s', transaction);
+        return true
     }
 
     getBalanceOfAddress(address){

@@ -4,7 +4,7 @@ let Blockchain = require('./blockchain')
 let EC = require('elliptic').ec
 let ec = new EC('secp256k1')
 
-let mykey = ec.keyFromPrivate('NEED TO INSERT')
+let mykey = ec.keyFromPrivate('MinerKey')
 let myWalletAddress = mykey.getPublic('hex')
 
 let walletSpv1Pk=ec.keyFromPrivate('Key1')
