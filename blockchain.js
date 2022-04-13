@@ -54,29 +54,34 @@ class Blockchain {
     }
     
     addTransactionWithFee(transaction) {
-      let amountWithFee = transaction.amount + this.getLatestBlock().index + 1
+      let amountWithFee = parseInt(transaction.amount) + this.getLatestBlock().index + 1
+      let fee = amountWithFee-parseInt(transaction.amount)
         if (!transaction.from || !transaction.to) {
-          throw new Error('Transaction must include from and to address');
+          console.log('Transaction must include from and to address')
+          return false
         }
     
         // Verify the transactiion
         if (!transaction.isValid()) {
-          throw new Error('Cannot add invalid transaction to chain');
+          console.log('Cannot add invalid transaction to chain')
+          return false
         }
         
         if (transaction.amount <= 0) {
-          throw new Error('Transaction amount should be higher than 0');
+          console.log('Transaction amount should be higher than 0')
+          return false
         }
         
         // Making sure that the amount sent is not greater than existing balance
         const walletBalance = this.getBalanceOfAddress(transaction.from);
         if (walletBalance < amountWithFee) {
-          throw new Error('Not enough balance');
+          console.log('Not enough balance')
+          console.log(fee)
+          return false
         }
     
         // Get all other pending transactions for the "from" wallet
-        const pendingTxForWallet = this.memPool
-          .filter(tx => tx.from === transaction.from);
+        const pendingTxForWallet = this.memPool.filter(tx => tx.from === transaction.from);
     
         // If the wallet has more pending transactions, calculate the total amount
         // of spend coins so far. If this exceeds the balance, we refuse to add this
@@ -88,7 +93,8 @@ class Blockchain {
     
           const totalAmount = totalPendingAmount + amountWithFee;
           if (totalAmount > walletBalance) {
-            throw new Error('Pending transactions for this wallet is higher than its balance.');
+            console.log('Pending transactions for this wallet is higher than its balance.')
+            return false
           }
         }
                                         
@@ -118,11 +124,7 @@ class Blockchain {
     }
 
     getTotalBlockchainBalance(){
-      let totalBalance = 0
-      this.chain.forEach(block => {
-        totalBalance += this.getBalanceOfAddress(block.hash)
-      })
-      return totalBalance
+      return this.minedTokens-this.tokensBurnt
     }
 
     getAllTransactionsForWallet(address) {
