@@ -9,7 +9,7 @@ class Block {
         const leaves = [transactions].map(x => SHA256(x))
         this.tree = new MerkleTree(leaves, SHA256)
         const root = this.tree.getRoot().toString('hex')
-        
+
         this.index = 0
         this.previousHash = previousHash
         this.hash = this.calculateHash()
@@ -55,6 +55,7 @@ class Block {
 
         console.log("BLOCK MINED: " + this.hash);
     }
+
 }
 
 module.exports = Block

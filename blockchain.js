@@ -184,6 +184,10 @@ class Blockchain {
       console.log("Amount of tokens on this SupaChain: "+this.getTotalBlockchainBalance())
     }
 
+    printBlock(index){
+      this.chain[index].printMerkle()
+    }
+
 
     isChainValid(){
         for (let i = 1; i < this.chain.length; i++) {
