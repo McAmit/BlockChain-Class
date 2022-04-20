@@ -3,6 +3,8 @@ let ec = new EC('secp256k1')
 let Block = require('./block')
 let Transaction = require('./transaction')
 const { Blockchain, supaChain } = require('./blockchain')
+const fs = require('fs')
+const {execSync} = require('child_process');
 
 const topology = require('fully-connected-topology')
 const { stdin, exit, argv } = process
@@ -21,6 +23,8 @@ const peerIps = getPeerIps(peers)
 const peersTxns = setPeersTxMap()
 const approvedTxns =setEmptyTxnsMap()
 const deniedTxns =setEmptyTxnsMap()
+const peersKeys = setPeersKeyMap()
+if(me === '4000') hardCodedActions(peersKeys)
 
 let fixer = true
 //connect to peers
@@ -30,7 +34,9 @@ topology(myIp, peerIps).on('connection', (socket, peerIp) => {
 
     const myKey = ec.keyFromPrivate(me)
     const myAddress = myKey.getPublic('hex')
-    const peersKeys = setPeersKeyMap()
+    
+
+    
 
     sockets[peerPort] = socket
     stdin.on('data', data => { // input
@@ -131,13 +137,23 @@ function minerSwitch(prefix, message, peersKeys, myAddress, myKey, peerPort) {
         case 'mine':
             mine(myAddress)
             break;
-
+        case 'mineForever':  // mine a block every 5-10 sec 6 times (50 sec total +-)
+            for (let index = 0; index < 10; index++) {
+                let j=0
+                while((j+index)<10){
+                    execSync('sleep 1');
+                    j++
+                }
+                mine(myAddress)
+            }
+            break;
         case 'balance':
             balanceOf(message, peersKeys, myAddress)
             break;
 
         case 'send':
-            sendTx(message, peersKeys, myAddress, myKey)
+            if(sendTx(message, peersKeys, myAddress, myKey))
+                log("Transaction sent successfuly")
             break;
         case 'request':
             let txAndPeer = requestTx(message, peersKeys, myAddress)
@@ -287,12 +303,12 @@ function sendTx(message, peersKeys, myAddress, myKey) {
     tx = new Transaction(myAddress, peersKeys.get(toPeer).getPublic('hex'), amount)
     tx.signTransaction(myKey)
     if (supaChain.addTransactionWithFee(tx)){
-        log("Transaction sent successfuly")
+        //log("Transaction sent successfuly")
         //approvedTxns.set(me,tx)
         approvedTxns.get(me).push(tx)
-        
+        return true
     }
-
+    return false
 }
 function sendTxTroughMiner(peersKeys, from, to, amount, myAddress) {
     // let toAddress
@@ -375,4 +391,31 @@ function showMinedTokens() {
 
 function showTotalTokens() {
     supaChain.showBlockChainTotalTokens()
+}
+
+function hardCodedActions(peersKeys) {
+
+    myKey = peersKeys.get('4000')
+    myAddress = myKey.getPublic('hex')
+
+    mine(myAddress) // initial mine gives 302 tokens
+    sendTx('send 4001 100',peersKeys,myAddress,myKey)
+    sendTx('send 4002 100',peersKeys,myAddress,myKey)
+    mine(myAddress)
+    for (let i = 0; i < 15; i++) {
+        sendTx('send 4001 1',peersKeys,myAddress,myKey)
+        sendTx('send 4002 1',peersKeys,myAddress,myKey)
+    }
+    
+    fs.writeFileSync('text.log', "Transactions in the MemPool: \n")
+    supaChain.memPool.forEach(transaction => {
+        try {
+          fs.appendFileSync('text.log', "\n"+transaction)
+        } catch(err) {
+          console.error(err)
+        }
+      });
+
+
+    //write mempool into text.log
 }
