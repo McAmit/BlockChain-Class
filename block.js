@@ -9,7 +9,7 @@ class Block {
         const leaves = [transactions].map(x => SHA256(x))
         this.tree = new MerkleTree(leaves, SHA256)
         const root = this.tree.getRoot().toString('hex')
-        
+
         this.index = 0
         this.previousHash = previousHash
         this.hash = this.calculateHash()
@@ -24,7 +24,7 @@ class Block {
 
     addTransaction(transaction) {
         if(!transaction.from || !transaction.to){
-            throw new Error("Transaction must have to and from address")
+            throw new Error("Transaction must have 'to' and 'from' address")
         }
 
         // if(!transaction.isValid()){
@@ -55,6 +55,15 @@ class Block {
 
         console.log("BLOCK MINED: " + this.hash);
     }
+
+    printMerkleTree(){
+        this.tree.print()
+    }
+
+    verifyLeaveInTree(index){
+        return this.tree.verify(this.tree.getProof(this.leaves[index])), this.leaves[index], this.tree.getRoot()
+    }
+
 }
 
 module.exports = Block

@@ -1,6 +1,5 @@
 let Block = require('./block')
 let sha256 = require('js-sha256')
-const fs = require('fs')
 const{PartitionedBloomFilter}=require('bloom-filters') 
 const Transaction = require('./transaction')
 const bloomFilter = new PartitionedBloomFilter(10, 5, 0.001) 
@@ -13,9 +12,10 @@ class Blockchain {
         this.difficulty = 2 // number of zero before target hash
         this.bfilter = bloomFilter
         this.memPool = []
-        this.miningReward = 20
+        this.miningReward = 300
         this.burnAddress = "0x000000000000000000000000000000000000dead"
         this.tokensBurnt = 0
+        this.tempBurnt = 0
         this.minedTokens = 0
 
     }
@@ -30,22 +30,33 @@ class Blockchain {
     minePendingTransactions(miningRewardAddress){
       this.memPool.push(new Transaction(null,miningRewardAddress,this.miningReward))
       this.miningReward = 20
-      this.minedTokens += this.miningReward
+      if(this.minedTokens===0) this.minedTokens = 300 //case for first time mining on chain.
+      else this.minedTokens += this.miningReward
+      //let subPool = this.cutMempool()
       let block=new Block(Date.now(),this.memPool,this.getLatestBlock().hash)
       block.mineBlock(this.difficulty)
       block.index=this.chain.length-1
       console.log('Block successfully mined!')
       this.chain.push(block)
       this.bfilter.add(block.hash)
-      this.memPool.forEach(transaction => {
-        try {
-          fs.appendFileSync('text.log', "\n"+JSON.stringify(transaction))
-        } catch(err) {
-          console.error(err)
-        }
-      });
+      this.tokensBurnt+=this.tempBurnt
+      this.tempBurnt=0
         
       this.memPool=[]
+    }
+    cutMempool(){ // Code for picking out 4 Txns out of mempool and updating the mempool by cutting it
+      let txToBlock = []
+      let newMemPool = []
+      let len = this.memPool.length
+      for(let i = 0; i<len;i++ ){
+        if( i< 3 || i===len-1) {
+          txToBlock.push(this.memPool[i])
+        } else {
+          newMemPool.push(this.memPool[i])
+        }
+      }
+      this.memPool=newMemPool;
+      return txToBlock;
     }
 
     calculateFee(block){
@@ -54,29 +65,34 @@ class Blockchain {
     }
     
     addTransactionWithFee(transaction) {
-      let amountWithFee = transaction.amount + this.getLatestBlock().index + 1
+      let amountWithFee = parseInt(transaction.amount) + this.getLatestBlock().index + 1
+      let fee = amountWithFee-parseInt(transaction.amount)
         if (!transaction.from || !transaction.to) {
-          throw new Error('Transaction must include from and to address');
+          console.log('Transaction must include from and to address')
+          return false
         }
     
         // Verify the transactiion
         if (!transaction.isValid()) {
-          throw new Error('Cannot add invalid transaction to chain');
+          console.log('Cannot add invalid transaction to chain')
+          return false
         }
         
         if (transaction.amount <= 0) {
-          throw new Error('Transaction amount should be higher than 0');
+          console.log('Transaction amount should be higher than 0')
+          return false
         }
         
         // Making sure that the amount sent is not greater than existing balance
         const walletBalance = this.getBalanceOfAddress(transaction.from);
         if (walletBalance < amountWithFee) {
-          throw new Error('Not enough balance');
+          console.log('Not enough balance')
+          console.log(fee)
+          return false
         }
     
         // Get all other pending transactions for the "from" wallet
-        const pendingTxForWallet = this.memPool
-          .filter(tx => tx.from === transaction.from);
+        const pendingTxForWallet = this.memPool.filter(tx => tx.from === transaction.from);
     
         // If the wallet has more pending transactions, calculate the total amount
         // of spend coins so far. If this exceeds the balance, we refuse to add this
@@ -88,7 +104,8 @@ class Blockchain {
     
           const totalAmount = totalPendingAmount + amountWithFee;
           if (totalAmount > walletBalance) {
-            throw new Error('Pending transactions for this wallet is higher than its balance.');
+            console.log('Pending transactions for this wallet is higher than its balance.')
+            return false
           }
         }
                                         
@@ -118,11 +135,7 @@ class Blockchain {
     }
 
     getTotalBlockchainBalance(){
-      let totalBalance = 0
-      this.chain.forEach(block => {
-        totalBalance += this.getBalanceOfAddress(block.hash)
-      })
-      return totalBalance
+      return this.minedTokens-this.tokensBurnt
     }
 
     getAllTransactionsForWallet(address) {
@@ -169,7 +182,7 @@ class Blockchain {
 
     burnToken(fromAddress, amount){
         this.memPool.push(new Transaction(fromAddress, this.burnAddress, amount))
-        this.tokensBurnt += amount
+        this.tempBurnt += amount
 
     }
     showBurntTokens(){
@@ -180,6 +193,10 @@ class Blockchain {
     }
     showBlockChainTotalTokens(){
       console.log("Amount of tokens on this SupaChain: "+this.getTotalBlockchainBalance())
+    }
+
+    printBlock(index){
+      this.chain[index].printMerkleTree()
     }
 
 
