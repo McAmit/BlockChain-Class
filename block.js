@@ -4,32 +4,32 @@ const SHA256 = require('crypto-js/sha256')
 
 class Block {
 
-    constructor() {
+    constructor(timestamp, transactions, previousHash = '') {
 
-        const leaves = [''].map(x => SHA256(x))
-        const tree = new MerkleTree(leaves, SHA256)
-        const root = tree.getRoot().toString('hex')
-        
+        const leaves = [transactions].map(x => SHA256(x))
+        this.tree = new MerkleTree(leaves, SHA256)
+        const root = this.tree.getRoot().toString('hex')
+
         this.index = 0
-        this.previousHash = ''
-        this.hash = ""
+        this.previousHash = previousHash
+        this.hash = this.calculateHash()
         this.nonce = 0
-        this.transactions = tree
-        this.timestamp = Date.now()
+        this.transactions = transactions
+        this.timestamp = timestamp
     }
 
     calculateHash(){
-        return SHA256(this.index+this.previousHash+this.timestamp +JSON.stringify(this.data)+this.nonce).toString;
+        return SHA256(this.index+this.previousHash+this.timestamp +JSON.stringify(this.data)+this.nonce).toString();
     }
 
     addTransaction(transaction) {
         if(!transaction.from || !transaction.to){
-            throw new Error("Transaction must have to and from address")
+            throw new Error("Transaction must have 'to' and 'from' address")
         }
 
-        // if(!transaction.isValid()){
-        //     throw new Error("Cannot add invalid transaction to chain")
-        // }
+        if(!transaction.isValid()){
+            throw new Error("Cannot add invalid transaction to chain")
+        }
 
         this.transactions.addLeaf(transaction,SHA256)
     }
@@ -55,6 +55,15 @@ class Block {
 
         console.log("BLOCK MINED: " + this.hash);
     }
+
+    printMerkleTree(){
+        this.tree.print()
+    }
+
+    verifyLeaveInTree(index){
+        return this.tree.verify(this.tree.getProof(this.leaves[index])), this.leaves[index], this.tree.getRoot()
+    }
+
 }
 
 module.exports = Block

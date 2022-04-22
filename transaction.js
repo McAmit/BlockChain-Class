@@ -6,7 +6,7 @@ class Transaction {
     constructor(from,to,amount) {
         this.from = from
         this.to = to
-        this.amount = amount
+        this.amount = parseInt(amount)
         this.timestamp = Date.now()
         this.signature = ''
     }
@@ -16,7 +16,8 @@ class Transaction {
     }
 
     signTransaction(signingKey){
-        if(signingKey.getPublic('hex')!=this.from){
+        if(this.to==="0x000000000000000000000000000000000000dead"){}
+        else if(signingKey.getPublic('hex')!=this.from){
             throw new Error('You cannot sign transaction from other wallet')
         }
         const hashTransaction = this.calculateHash()
@@ -33,6 +34,10 @@ class Transaction {
         }
         const publicKey = ec.keyFromPublic(this.from, 'hex')
         return publicKey.verify(this.calculateHash(), this.signature)
+    }
+
+    toString(){
+        return "Txn: " + this.calculateHash() + "\nSent from: " + this.from + "\nTo: " + this.to + "\nAmount of " + this.amount + " SupaCoins, Timestamp: " + this.timestamp
     }
     
 }
